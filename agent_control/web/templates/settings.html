@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Settings · Agent Control{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">Local administration</p><h1>Settings</h1>
+<p>Manage the approval owner and the explicit GitHub repository allowlist.</p></div></section>
+<section class="panel settings-panel">
+  {% if not editable %}<div class="notice danger">This server has no writable configuration path. Start with a config file to edit settings.</div>{% endif %}
+  <form id="settings-form" data-revision="{{ revision }}">
+    <label for="owner-login">Approval owner · GitHub login</label>
+    <input id="owner-login" name="owner_login" type="text" maxlength="39" value="{{ settings.owner_login or '' }}" placeholder="CodeBBQ" autocomplete="off">
+    <small>GitHub owner login for dashboard configuration. Not an application password.</small>
+    <label for="repositories">Repositories · one owner/repo per line</label>
+    <textarea id="repositories" name="repositories" rows="9" spellcheck="false" required>{{ repositories }}</textarea>
+    <small>Maximum 50. Remove a line to stop observing a repository. Existing project IDs remain stable.</small>
+    <div class="settings-actions"><button type="submit" {% if not editable %}disabled{% endif %}>Save settings</button></div>
+    <p id="settings-feedback" role="status" aria-live="polite"></p>
+  </form>
+</section>
+{% endblock %}

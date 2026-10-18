@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ project.display_name }} · Agent Control{% endblock %}
+{% block content %}
+{% include "roadmap_canvas.html" %}
+<section class="panel">
+  <div class="panel-heading"><div><p class="eyebrow">Additional GitHub evidence</p><h2>Recent pull requests</h2></div><p>PRs not tied to an issue-number branch remain visible here.</p></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>PR</th><th>Branch · HEAD</th><th>CI</th><th>Review</th></tr></thead>
+    <tbody>
+    {% for pull in snapshot.pull_requests[:25] if snapshot %}
+      <tr><td><a href="{{ pull.source_url }}" target="_blank" rel="noreferrer">#{{ pull.number }} {{ pull.title }}</a></td>
+      <td><code>{{ pull.head_ref }}</code><br><code>{{ pull.head_sha[:12] }}</code></td>
+      <td><span class="badge ci-{{ pull.ci_status.value }}">{{ pull.ci_status.value }}</span><br><small>Observed {{ pull.ci_observed_sha[:12] if pull.ci_observed_sha else 'unknown' }}</small></td>
+      <td>{{ pull.review_status.value|replace('_', ' ') }}</td></tr>
+    {% else %}<tr><td colspan="4">No pull requests observed.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

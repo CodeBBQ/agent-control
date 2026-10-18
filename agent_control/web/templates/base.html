@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="agent-control-csrf" content="{{ csrf_token }}">
+  <title>{% block title %}Agent Control{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='dashboard.css') }}?v={{ asset_version('dashboard.css') }}">
+  <script defer src="{{ url_for('static', path='dashboard.js') }}?v={{ asset_version('dashboard.js') }}"></script>
+</head>
+<body>
+  <div class="app-shell" data-app-shell>
+    <aside class="global-roadmap" aria-label="Project roadmap">
+      {% include "roadmap_sidebar.html" %}
+    </aside>
+    <div class="app-center">
+      <header class="site-header">
+        <button type="button" class="roadmap-mobile-toggle" data-roadmap-toggle aria-expanded="false" aria-label="Show project roadmap">Roadmap</button>
+        <a class="brand" href="/" aria-label="Agent Control overview">
+          <span class="brand-mark" aria-hidden="true">AC</span>
+          <strong>Agent Control</strong>
+        </a>
+        <nav class="header-attention" aria-label="Status summary">
+          <a href="/owner-actions">Actions {{ attention.owner_actions }}</a>
+          <a href="/failures"{% if attention.blockers %} class="alert"{% endif %}>Blockers {{ attention.blockers }}</a>
+          <a href="/failures"{% if attention.failed_ci %} class="alert"{% endif %}>CI {{ attention.failed_ci }}</a>
+          <a href="/failures">Stale {{ attention.stale_projects }}</a>
+        </nav>
+        <nav class="header-navigation" aria-label="Primary navigation">
+      <a href="/">Overview</a>
+      <a href="/settings">Settings</a>
+      <details class="header-update-menu" data-dashboard-update>
+        <summary>Update · <code class="header-commit" title="Loaded at server startup">{{ running_code_commit }}</code> ▾</summary>
+        <div class="header-update-panel">
+          <h2>Service version</h2>
+          <p>Branch: <strong data-current-branch>Loading…</strong></p>
+          <p>Running code commit: <code>{{ running_code_commit }}</code></p>
+          <p>Fetch a selected GitHub branch, fast-forward only, restart the managed macOS service, and reload. Local changes are never discarded; unowned processes cannot be restarted. Use the direct local browser URL.</p>
+          <form data-update-form>
+            <label for="update-branch">Git branch</label>
+            <select id="update-branch" name="branch" required>
+              <option value="">Open menu to load branches…</option>
+            </select>
+            <button type="submit" disabled>Update on branch</button>
+          </form>
+          <p data-update-status role="status" aria-live="polite"></p>
+          <section class="header-pr-panel" aria-label="Pull request actions">
+            <h3>Pull request</h3>
+            <p data-pr-preview role="status" aria-live="polite">Select a branch to check for an open PR.</p>
+            <form data-pr-form>
+              <label class="header-pr-checkbox">
+                <input type="checkbox" name="merge" value="true">
+                After marking ready: merge and delete remote branch
+              </label>
+              <p><small>Unchecked: mark draft PR ready only. Checked: also merge with a merge commit and request remote branch deletion. The separate service update button remains independent.</small></p>
+              <button type="submit" disabled>Mark PR ready</button>
+            </form>
+            <p data-pr-action-status role="status" aria-live="polite"></p>
+          </section>
+        </div>
+      </details>
+      <a class="refresh-link" href="/refresh">Refresh</a>
+        </nav>
+      </header>
+      <main id="main-content" tabindex="-1">
+        {% if data.coordination_warnings %}
+          <details class="integrity-notice" role="status">
+            <summary>Coordination integrity warnings · {{ data.coordination_warnings|length }}</summary>
+            <p>Other issues and projects remain available. <a href="/failures">Review issue warnings</a>.</p>
+          </details>
+        {% endif %}
+        {% if data.local_state_error %}
+          <details class="integrity-notice" role="alert">
+            <summary>Local state unavailable · integrity warning</summary>
+            <p>{{ data.local_state_error }}</p>
+          </details>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+      <footer class="site-statusbar">
+        <span>Read-only web view · explicit local settings / sync-PR actions</span>
+        <span>Generated <time datetime="{{ data.generated_at.isoformat() }}" data-relative-time>{{ data.generated_at.strftime('%Y-%m-%d %H:%M UTC') }}</time></span>
+      </footer>
+    </div>
+    <aside class="right-rail" data-inspector-rail aria-label="Activity and owner queue">
+      <div class="right-rail-controls" aria-label="Inspector controls">
+        <button type="button" class="inspector-tab" data-inspector-tab="actions" aria-expanded="false" aria-controls="right-inspector-content">Actions <span>{{ attention.owner_actions }}</span></button>
+        <button type="button" class="inspector-tab" data-inspector-tab="agents" aria-expanded="false" aria-controls="right-inspector-content">Agents <span>{{ recent_runs|length }}</span></button>
+        <button type="button" class="inspector-close" data-inspector-close aria-label="Collapse inspector">×</button>
+      </div>
+      <div class="right-inspector-content" id="right-inspector-content">
+        <details class="inspector-section" data-inspector-section="actions" open>
+          <summary>Owner actions <span>{{ attention.owner_actions }}</span></summary>
+          <div class="inspector-list">
+            {% for action in side_actions %}
+              <article class="inspector-item">
+                <span class="badge {{ action.priority.value }}">{{ action.priority.value }}</span>
+                <a href="/workstreams/{{ action.workstream_id }}">{{ action.requested_action }}</a>
+                <small>{{ action.reason }}</small>
+              </article>
+            {% else %}
+              <p class="empty">No pending owner actions.</p>
+            {% endfor %}
+            <a class="inspector-all" href="/owner-actions">View all owner actions →</a>
+          </div>
+        </details>
+        <details class="inspector-section" data-inspector-section="agents" open>
+          <summary>Recent agent runs <span>{{ recent_runs|length }}</span></summary>
+          <div class="inspector-list">
+            <small>Agent reports do not prove a currently running process.</small>
+            {% for run in recent_runs %}
+              {% set stream = data.workstream(run.workstream_id) %}
+              <article class="inspector-item">
+                <a href="/agents/{{ run.id }}">{{ run.agent_identity }}</a>
+                <small>{% if stream %}<a href="/workstreams/{{ stream.id }}">{{ stream.title }}</a> · {% endif %}{{ run.status.value }}</small>
+                <small>{% if is_report_stale(run) %}stale / unconfirmed{% else %}recent report · live unknown{% endif %}</small>
+              </article>
+            {% else %}
+              <p class="empty">No agent runs registered.</p>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

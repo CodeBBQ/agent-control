@@ -1,0 +1,19 @@
+host = "127.0.0.1"
+port = 8420
+state_directory = "/absolute/path/to/agent-control-state"
+cache_directory = "/absolute/path/to/agent-control-cache"
+github_token_env = "GITHUB_TOKEN"
+refresh_seconds = 120
+stale_report_seconds = 1800
+coordination_source = "issues"
+owner_login = "example-owner"
+
+[[projects]]
+id = "sample-one"
+repository = "example/project-one"
+display_name = "Example Project One"
+
+[[projects]]
+id = "sample-two"
+repository = "example/project-two"
+display_name = "Example Project Two"

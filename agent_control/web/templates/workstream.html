@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ workstream.title }} · Agent Control{% endblock %}
+{% block content %}
+<section class="page-heading"><div><p class="eyebrow">Workstream · {{ workstream.id }}</p><h1>{{ workstream.title }}</h1><p>{{ project.display_name if project else 'Unknown project' }} · <span class="badge phase">{{ workstream.phase.value }}</span></p></div><div class="next-action"><small>Next action</small><strong>{{ workstream.next_action }}</strong></div></section>
+
+<div class="detail-grid">
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">Canonical source</p><h2>GitHub evidence</h2></div></div>
+  <dl class="facts"><dt>Owning branch</dt><dd>{{ workstream.owning_branch or 'Unknown' }} {% if branch_missing %}<span class="badge warning">missing in latest GitHub snapshot</span>{% elif branch_head %}<small>Observed <code>{{ branch_head }}</code></small>{% endif %}</dd><dt>Expected head</dt><dd><code>{{ workstream.expected_head_sha or 'Unknown' }}</code></dd><dt>Dependencies</dt><dd>{{ workstream.dependency_ids|join(', ') or 'None recorded' }}</dd></dl>
+  {% for issue in issues %}<article class="evidence-card"><span class="badge good">GitHub observed</span><h3><a href="{{ issue.source_url }}" target="_blank" rel="noreferrer">#{{ issue.number }} {{ issue.title }}</a></h3><small>Updated <time datetime="{{ issue.updated_at.isoformat() }}" data-relative-time>{{ issue.updated_at }}</time></small></article>{% else %}<p class="empty">No matching issue evidence in the latest snapshot.</p>{% endfor %}
+  {% if pull %}<article class="evidence-card"><span class="badge ci-{{ pull.ci_status.value }}">CI {{ pull.ci_status.value }}</span><span class="badge neutral">Review {{ pull.review_status.value|replace('_', ' ') }}</span><h3><a href="{{ pull.source_url }}" target="_blank" rel="noreferrer">PR #{{ pull.number }} {{ pull.title }}</a></h3><p>Current head <code>{{ pull.head_sha }}</code></p><small>Checks were evaluated for {{ pull.ci_observed_sha or 'an unknown revision' }}</small></article>{% endif %}
+  {% if pull_missing %}<div class="notice danger"><strong>Pull request evidence missing</strong>PR #{{ workstream.pull_request_number }} was not present in the latest successful GitHub snapshot. It may be closed, deleted, inaccessible, or the coordination record may be stale.</div>{% endif %}
+</section>
+
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">Transient assignments</p><h2>Agent runs</h2></div></div>
+{% for run in runs %}<article class="run-card"><div><a href="/agents/{{ run.id }}"><strong>{{ run.agent_identity }}</strong></a><span class="badge neutral">{{ run.status.value }}</span>{% if is_report_stale(run) %}<span class="badge warning">stale</span>{% endif %}</div><p>{{ run.adapter }} · {{ run.environment }}</p><small>Latest report {{ run.last_report_at or 'none' }} · not proof of current execution</small></article>{% else %}<p class="empty">No agent runs assigned.</p>{% endfor %}
+</section>
+</div>
+
+<section class="panel session-panel" aria-label="Session navigation">
+  <div class="panel-heading"><div><p class="eyebrow">Navigation metadata · not runtime evidence</p><h2>Agent sessions</h2></div></div>
+  {% if session_link_error %}<p class="notice warning" role="status">{{ session_link_error }}</p>{% endif %}
+  {% if sessions %}
+    <p><a class="session-open" href="{{ sessions[0].url }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Open last linked {{ 'snapshot' if sessions[0].snapshot_only else 'session' }} ↗</a> <small>{{ 'Selected locally' if sessions[0].source == 'local' else 'Observed in GitHub comment' }}</small></p>
+    <ul class="session-history">
+    {% for session in sessions %}
+      <li><a href="{{ session.url }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ 'Shared snapshot' if session.snapshot_only else 'Session' }} ↗</a>
+        <small>{{ session.source }} · <time datetime="{{ session.observed_at.isoformat() }}" data-relative-time>{{ session.observed_at }}</time></small>
+        {% if session.comment_url %}<a href="{{ session.comment_url }}" target="_blank" rel="noopener noreferrer">source comment</a>{% endif %}
+        {% if session.source == 'local' %}<button type="button" data-session-remove data-workstream="{{ workstream.id }}" data-url="{{ session.url }}">Remove local link</button>{% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  {% else %}<p class="empty">No session linked yet. This does not mean no agent worked on this issue.</p>{% endif %}
+  <form class="session-form" data-session-form data-workstream="{{ workstream.id }}">
+  <label for="session-url-{{ workstream.id }}">Private session URL (local only)</label>
+  <div class="session-form-controls">
+    <input id="session-url-{{ workstream.id }}" name="url" type="url"
+      placeholder="https://chatgpt.com/c/…" required maxlength="500"
+      autocomplete="off" spellcheck="false">
+    <button type="submit">Save link</button>
+  </div>
+  <small>Stored only on this Mac, never posted to GitHub. ChatGPT share URLs are snapshots.</small>
+  <span data-session-feedback role="status" aria-live="polite"></span>
+</form>
+  <p class="session-hint">Optional GitHub issue comment format: <code>Agent-Session: https://chatgpt.com/c/…</code>. Public issue comments may disclose the link. Private local entries remain on this device. Links do not prove that an agent is active.</p>
+</section>
+
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">Persistent attention</p><h2>Blockers and owner actions</h2></div></div><div class="split-list"><div><h3>Blockers</h3>{% for blocker in blockers %}<article class="failure-card"><span class="badge danger">{{ blocker.classification.value|replace('_', ' ') }}</span><h4>{{ blocker.summary }}</h4><p>{{ blocker.detail }}</p></article>{% else %}<p class="empty">No blockers recorded.</p>{% endfor %}</div><div><h3>Owner actions</h3>{% for action in actions %}<article class="action-card priority-{{ action.priority.value }}"><span class="badge {{ action.priority.value }}">{{ action.priority.value }}</span><span class="badge neutral">{{ action.status.value }}</span><h4>{{ action.requested_action }}</h4><p>{{ action.reason }}</p></article>{% else %}<p class="empty">No owner actions recorded.</p>{% endfor %}</div></div></section>
+
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">Agent-reported timeline</p><h2>Progress reports</h2></div></div><ol class="timeline">{% for report in reports %}<li><div><span class="badge neutral">{{ report.phase.value }}</span><time datetime="{{ report.reported_at.isoformat() }}" data-relative-time>{{ report.reported_at }}</time></div><p>{{ report.summary }}</p><small>Next: {{ report.next_action }}</small>{% for evidence in report.evidence %}<a class="evidence-link" href="{{ evidence.source_url }}" target="_blank" rel="noreferrer">{{ evidence.summary }} ↗</a>{% endfor %}</li>{% else %}<li class="empty">No progress reports.</li>{% endfor %}</ol></section>
+{% endblock %}

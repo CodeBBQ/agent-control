@@ -1,0 +1,67 @@
+  <details class="roadmap-project-picker" data-project-picker>
+    <summary>
+      <span>Project:</span>
+      <strong>{{ selected_project.display_name }}</strong>
+      <span class="picker-chevron" aria-hidden="true">▾</span>
+    </summary>
+    <nav aria-label="Choose project">
+      {% for roadmap in roadmaps %}
+        <a href="/?project={{ roadmap.project.id|urlencode }}"{% if roadmap.project.id == selected_project.id %} aria-current="page"{% endif %}>{{ roadmap.project.display_name }}</a>
+      {% endfor %}
+    </nav>
+  </details>
+  <aside class="roadmap-sidebar" aria-label="Project roadmap">
+    <h2>Project roadmap</h2>
+    {% for roadmap in roadmaps if roadmap.project.id == selected_project.id %}
+      <section class="roadmap-project active">
+        <span class="roadmap-filter">Issues · GitHub snapshot{% if roadmap.stale %} · stale{% endif %}</span>
+        <div class="roadmap-counts" aria-label="Issue totals">
+          <span>{{ roadmap.total }} total</span>
+          <span>{{ roadmap.closed }} closed</span>
+          <span>{{ roadmap.in_progress }} in progress</span>
+          <span>{{ roadmap.open }} open</span>
+        </div>
+        {% if roadmap.total %}
+          <div class="roadmap-progress" aria-label="Completion: {{ roadmap.closed }} of {{ roadmap.total }} issues closed">
+            <span class="done" style="width:{{ 100 * roadmap.closed / roadmap.total }}%"></span>
+            <span class="active-work" style="width:{{ 100 * roadmap.in_progress / roadmap.total }}%"></span>
+          </div>
+        {% endif %}
+        {% for group in roadmap.milestones %}
+          <details class="roadmap-milestone" {% if loop.first %}open{% endif %}>
+            <summary><span class="milestone-title" title="{{ group.title }}">{{ group.title }}</span>
+              <span class="milestone-count">{{ group.closed }}/{{ group.total }}</span>
+            </summary>
+            <ul class="roadmap-issue-list">
+              {% for item in group.issues if item.bucket != 'closed' %}
+                <li class="{{ item.bucket }} {% if item.is_sub_issue %}sub-issue{% endif %}">
+                  {% if item.workstream_id %}
+                    <a title="#{{ item.number }} {{ item.title }}" href="/workstreams/{{ item.workstream_id }}">#{{ item.number }} {{ item.title }}</a>
+                  {% else %}
+                    <span title="#{{ item.number }} {{ item.title }}">#{{ item.number }} {{ item.title }}</span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+            {% if group.closed %}
+              <details class="roadmap-closed-details">
+                <summary>{{ group.closed }} completed</summary>
+                <ul class="roadmap-issue-list">
+                  {% for item in group.issues if item.bucket == 'closed' %}
+                    <li class="closed {% if item.is_sub_issue %}sub-issue{% endif %}">
+                      {% if item.workstream_id %}
+                        <a title="#{{ item.number }} {{ item.title }}" href="/workstreams/{{ item.workstream_id }}">#{{ item.number }} {{ item.title }}</a>
+                      {% else %}
+                        <span title="#{{ item.number }} {{ item.title }}">#{{ item.number }} {{ item.title }}</span>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              </details>
+            {% endif %}
+            {% if group.omitted %}<small>+{{ group.omitted }} more issues (not loaded in this view)</small>{% endif %}
+          </details>
+        {% else %}<small>No issues observed yet.</small>{% endfor %}
+      </section>
+    {% endfor %}
+  </aside>

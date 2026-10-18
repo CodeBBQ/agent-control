@@ -1,0 +1,70 @@
+name: Agent Control exact-HEAD CI
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Commit SHA to verify (optional for manual runs)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Project checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_INPUT: "1"
+    steps:
+      - name: Check out the requested revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Verify requested exact commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [[ -n "${EXPECTED_SHA}" ]]; then
+            if [[ ! "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]] || [[ "${actual}" != "${EXPECTED_SHA}" ]]; then
+              echo "ERROR: dispatched exact HEAD differs from expected SHA." >&2
+              exit 1
+            fi
+          elif [[ "${actual}" != "${GITHUB_SHA}" ]]; then
+            echo "ERROR: checkout SHA differs from GitHub event SHA." >&2
+            exit 1
+          fi
+          echo "Verifying ${actual}"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.11"
+
+      - name: Verify Python project if bootstrapped
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f pyproject.toml ]]; then
+            python -m pip install -e ".[dev]"
+            python -m ruff check .
+            python -m ruff format --check .
+            python -m mypy agent_control
+            python -m pytest
+          else
+            echo "No pyproject.toml: application verification is unavailable."
+            echo "Application lint, types and tests remain NOT IMPLEMENTED, not PASS."
+          fi
