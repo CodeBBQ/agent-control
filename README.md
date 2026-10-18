@@ -2,7 +2,7 @@
 
 **A local-first GitHub roadmap and activity dashboard for parallel software projects.**
 
-This publication-oriented repository demonstrates Python backend development, GitHub API integration, FastAPI/Jinja user interfaces, background synchronization, CI-state presentation and cautious handling of unavailable or stale data.
+This repository demonstrates Python backend development, GitHub API integration, FastAPI/Jinja user interfaces, background synchronization, CI-state presentation and cautious handling of unavailable or stale data.
 
 ![Agent Control overview with privacy-sensitive identifiers obscured](docs/assets/agent-control-dashboard-showcase.jpg)
 
@@ -22,7 +22,7 @@ The dashboard observes ordinary GitHub issues **without requiring repository mar
 
 Python 3.11+, FastAPI, Jinja, Pydantic, HTTPX, GitHub Actions, HTML/CSS/JavaScript. See [architecture](docs/architecture/overview.md), [features](docs/features.md) and [local setup](docs/getting-started.md).
 
-The GitHub patch importer, machine-event publisher and cross-repository agent-rule synchronization are **not distributed** with this public-facing copy. Standard project CI remains.
+Standard project CI checks are included. Source code and tests define the supported features.
 
 ## Local setup
 
